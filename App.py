@@ -6,12 +6,16 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # Configuração da página
-st.set_page_config(page_title="Cadastro de Produtos", page_icon="📦", layout="wide")
+st.set_page_config(page_title="Cadastro de Produtos", page_icon="\ud83d\udce6", layout="wide")
 
 # Carregar credenciais do Streamlit Secrets
-creds_json = json.loads(st.secrets["gspread"]["service_account"])
-CREDS = Credentials.from_service_account_info(creds_json)
-SHEET_ID = st.secrets["gspread"]["sheet_id"]
+try:
+    creds_json = json.loads(st.secrets["gspread"]["service_account"])
+    SHEET_ID = st.secrets["gspread"]["sheet_id"]
+    CREDS = Credentials.from_service_account_info(creds_json)
+except Exception as e:
+    st.error(f"Erro ao carregar credenciais: {e}")
+    st.stop()
 
 # Conectar ao Google Sheets
 @st.cache_resource
@@ -64,7 +68,7 @@ st.markdown(
 )
 
 # Título da aplicação
-st.markdown('<div class="titulo">📦 Cadastro de Produtos</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo">\ud83d\udce6 Cadastro de Produtos</div>', unsafe_allow_html=True)
 
 # Formulário de cadastro
 st.markdown('<div class="card">', unsafe_allow_html=True)
@@ -104,7 +108,7 @@ with st.form("cadastro_produto", clear_on_submit=True):
 st.markdown('</div>', unsafe_allow_html=True)
 
 # Exibir produtos cadastrados
-st.markdown('<div class="titulo">📋 Produtos Cadastrados</div>', unsafe_allow_html=True)
+st.markdown('<div class="titulo">\ud83d\udccb Produtos Cadastrados</div>', unsafe_allow_html=True)
 st.markdown('<div class="card">', unsafe_allow_html=True)
 
 try:
@@ -119,4 +123,5 @@ except Exception as e:
     st.error(f"Erro ao carregar produtos cadastrados: {e}")
 
 st.markdown('</div>', unsafe_allow_html=True)
+
 
