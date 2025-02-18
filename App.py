@@ -1,41 +1,79 @@
 import streamlit as st
 import pandas as pd
 import gspread
+import json
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # Configuração da página
 st.set_page_config(page_title="Cadastro de Produtos", page_icon="📦", layout="wide")
 
-# Autenticação no Google Sheets
-SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = "C:\\Users\\Eriqu\\OneDrive\\Documentos\\Projeto-Cadastro\\delta-entity-451313-b4-3fd49c3a8c06.json"
+# Carregar credenciais do Streamlit Secrets
+creds_json = json.loads(st.secrets["gspread"]["service_account"])
+CREDS = Credentials.from_service_account_info(creds_json)
+SHEET_ID = st.secrets["gspread"]["sheet_id"]
 
-try:
-    CREDS = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPE)
-    CLIENT = gspread.authorize(CREDS)
+# Conectar ao Google Sheets
+@st.cache_resource
+def conectar_google_sheets():
+    try:
+        client = gspread.authorize(CREDS)
+        spreadsheet = client.open_by_key(SHEET_ID)
+        worksheet = spreadsheet.worksheet("Lista de Produtos")
 
-    # ID da planilha do Google Sheets
-    SHEET_ID = "1Nf-SB0j2lK_KrZRyyt2mrdemz3QHBCrReI2udmgzw4w"
-    SHEET_NAME = "Lista de Produtos"  # Nome correto da aba
+        # Verifica se há cabeçalho, se não, adiciona
+        if not worksheet.get_all_values():
+            worksheet.append_row(["Nome", "Descrição", "Categoria", "Preço", "Quantidade", "Data Cadastro"])
 
-    # Abrir a planilha e a aba correta
-    spreadsheet = CLIENT.open_by_key(SHEET_ID)
-    worksheet = spreadsheet.worksheet(SHEET_NAME)
-except Exception as e:
-    st.error(f"Erro ao conectar com o Google Sheets: {e}")
-    st.stop()
+        return worksheet
+    except Exception as e:
+        st.error(f"Erro ao conectar ao Google Sheets: {e}")
+        st.stop()
+
+worksheet = conectar_google_sheets()
+
+# Estilos da interface
+st.markdown(
+    """
+    <style>
+        .stApp { background-color: #f5f7fa; }
+        .titulo { font-size: 32px; font-weight: bold; color: #333; text-align: center; }
+        .card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            margin: 10px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Título da aplicação
-st.title("📦 Sistema de Cadastro de Produtos")
+st.markdown('<div class="titulo">📦 Cadastro de Produtos</div>', unsafe_allow_html=True)
 
 # Formulário de cadastro
+st.markdown('<div class="card">', unsafe_allow_html=True)
 with st.form("cadastro_produto", clear_on_submit=True):
     col1, col2 = st.columns(2)
 
     with col1:
-        nome = st.text_input("Nome do Produto*")
-        descricao = st.text_area("Descrição")
+        nome = st.text_input("Nome do Produto*", placeholder="Digite o nome")
+        descricao = st.text_area("Descrição", placeholder="Detalhes do produto")
         categoria = st.selectbox("Categoria*", ["Eletrônicos", "Vestuário", "Alimentos", "Livros", "Outros"])
 
     with col2:
@@ -49,7 +87,6 @@ with st.form("cadastro_produto", clear_on_submit=True):
             st.error("Preencha todos os campos obrigatórios (*)")
         else:
             try:
-                # Criar nova linha de produto
                 novo_produto = [
                     nome,
                     descricao,
@@ -59,25 +96,27 @@ with st.form("cadastro_produto", clear_on_submit=True):
                     datetime.now().strftime("%d/%m/%Y %H:%M")
                 ]
 
-                # Adiciona no Google Sheets
                 worksheet.append_row(novo_produto)
-
-                st.success("Produto cadastrado com sucesso!")
+                st.success("✅ Produto cadastrado com sucesso!")
             except Exception as e:
                 st.error(f"Erro ao cadastrar produto: {e}")
 
+st.markdown('</div>', unsafe_allow_html=True)
+
 # Exibir produtos cadastrados
-st.divider()
-st.subheader("Produtos Cadastrados")
+st.markdown('<div class="titulo">📋 Produtos Cadastrados</div>', unsafe_allow_html=True)
+st.markdown('<div class="card">', unsafe_allow_html=True)
 
 try:
-    # Ler os dados do Google Sheets
     dados = worksheet.get_all_values()
 
-    if len(dados) > 1:  # Se houver mais que o cabeçalho
-        df = pd.DataFrame(dados[1:], columns=dados[0])  # Ignorar cabeçalhos
-        st.dataframe(df)
+    if len(dados) > 1:
+        df = pd.DataFrame(dados[1:], columns=dados[0])
+        st.dataframe(df, height=400, use_container_width=True)
     else:
-        st.info("Nenhum produto cadastrado ainda.")
+        st.info("🔍 Nenhum produto cadastrado ainda.")
 except Exception as e:
     st.error(f"Erro ao carregar produtos cadastrados: {e}")
+
+st.markdown('</div>', unsafe_allow_html=True)
+
